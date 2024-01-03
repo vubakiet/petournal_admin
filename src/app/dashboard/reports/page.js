@@ -1,442 +1,492 @@
 "use client";
-import ReportService from "@/app/core/service/report.service";
 import React, { useEffect, useState } from "react";
 import { FaEye } from "react-icons/fa";
+import { ImBlocked } from "react-icons/im";
 import { FaUserXmark } from "react-icons/fa6";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import useSWR from "swr";
+import ReportService from "@/core/service/report.service";
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@chakra-ui/react";
+import convertDateFormat from "@/core/utils/formatDate";
 
 export default function Page() {
-    const [showModal, setShowModal] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const loadingRowsCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    const fetcher = (...args) => fetch(...args).then((res) => res.json());
-    const { data: products, error } = useSWR("https://api.escuelajs.co/api/v1/products", fetcher);
-    const [reports, setReports] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [reportData, setReportData] = useState(null);
 
-    useEffect(() => {
-        getReports();
-    }, []);
+  const loadingRowsCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const [reports, setReports] = useState([]);
+  const [type, setType] = useState("all");
 
-    const getReports = async () => {
-        const { data } = await ReportService.getReports();
-        setReports(data);
+  useEffect(() => {
+    getReports();
+  }, []);
+
+  const getReportDetails = async (reportId) => {
+    const { data } = await ReportService.getReportDetails(reportId);
+    if (data) {
+      setReportData(data);
+      setShowModal(true);
+    }
+  };
+
+  const getReports = async () => {
+    const { data } = await ReportService.getReports();
+    setReports(data);
+  };
+  const getPostsReported = async () => {
+    const { data } = await ReportService.getPostsReported();
+    setReports(data);
+  };
+
+  const getUsersReported = async () => {
+    const { data } = await ReportService.getUsersReported();
+    setReports(data);
+  };
+
+  useEffect(() => {
+    if (type === "post") {
+      getPostsReported();
+    }
+    if (type === "user") {
+      getUsersReported();
+    }
+  }, [type]);
+
+  const ItemsTable = ({ items }) => {
+    const handleWatch = async (reportId) => {
+      await getReportDetails(reportId);
     };
 
-    const deleteItemHandler = () => {
-        toast.success("Item successfully deleted!", {
-            position: "bottom-right",
-            autoClose: 2000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-        });
-    };
-    const saveItemHandler = () => {
-        setSaving(true);
-        setTimeout(() => {
-            setSaving(false);
-            setShowModal(false);
-        }, 2000);
-    };
-    const ItemsTable = ({ items }) => {
-        return (
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                    <tr>
-                        <th scope="col" className="p-4">
-                            STT
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Đối tượng bị báo cáo
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Kiểu
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Lý do
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Action
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {items.map((item, index) => (
-                        <tr
-                            key={`${item._id}`}
-                            className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                        >
-                            <td className="w-4 p-4">
-                                <div className="flex items-center justify-center text-xl">{index + 1}</div>
-                            </td>
-                            <th
-                                scope="row"
-                                className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white"
-                            >
-                                <img
-                                    className="w-10 h-10 rounded-md"
-                                    src={item.post ? item.post.imageUrl : item.user ? item.user.avatar : null}
-                                    alt="Jese image"
-                                    width={100}
-                                    height={100}
-                                />
-                                <div className="pl-3">
-                                    <div className="text-base font-semibold">
-                                        {item.post ? item.post.content : item.user ? item.user.firstName : null}
-                                    </div>
-                                </div>
-                            </th>
-                            <td className="px-6 py-4">
-                                {item.type == "post" ? "Bài viết" : item.type == "user" ? "Người dùng" : null}
-                            </td>
-                            <td className="px-6 py-4">{item.reason}</td>
-                            <td className="px-6 py-4 flex items-center">
-                                <button
-                                    type="button"
-                                    className="font-medium text-violet-600 dark:text-violet-500 hover:underline"
-                                    onClick={() => setShowModal(true)}
-                                >
-                                    <FaEye className="w-6 h-6" />
-                                </button>
-
-                                <button
-                                    className="font-medium text-red-600 dark:text-red-500 hover:underline ml-4"
-                                    // onClick={onOpen}
-                                >
-                                    <FaUserXmark className="w-6 h-6" />
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        );
-    };
-    const ItemsModal = () => {
-        return (
-            showModal && (
-                <div
-                    className={`fixed top-0 left-0 right-0 z-50 flex  items-center justify-center mx-auto  w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full`}
-                >
-                    <div
-                        className={`${
-                            showModal ? "drop-shadow-sm" : ""
-                        }  relative w-full max-w-2xl mx-auto  max-h-full`}
-                    >
-                        <form action="#" className="relative bg-white rounded-lg shadow dark:bg-gray-700">
-                            <div className="flex items-start justify-between p-4 border-b rounded-t dark:border-gray-600">
-                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Edit user</h3>
-                                <button
-                                    type="button"
-                                    className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white"
-                                    onClick={() => setShowModal(false)}
-                                >
-                                    <svg
-                                        aria-hidden="true"
-                                        className="w-5 h-5"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            fill-rule="evenodd"
-                                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                            clip-rule="evenodd"
-                                        ></path>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-6">
-                                <div className="grid grid-cols-6 gap-6">
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="first-name"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            First Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="first-name"
-                                            id="first-name"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="Bonnie"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="last-name"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Last Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="last-name"
-                                            id="last-name"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="Green"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="email"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Email
-                                        </label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            id="email"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="example@company.com"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="phone-number"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Phone Number
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="phone-number"
-                                            id="phone-number"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="e.g. +(12)3456 789"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="department"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Department
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="department"
-                                            id="department"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="Development"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="company"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Company
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="company"
-                                            id="company"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="123456"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="current-password"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            Current Password
-                                        </label>
-                                        <input
-                                            type="password"
-                                            name="current-password"
-                                            id="current-password"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="••••••••"
-                                            required=""
-                                        />
-                                    </div>
-                                    <div className="col-span-6 sm:col-span-3">
-                                        <label
-                                            htmlFor="new-password"
-                                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                        >
-                                            New Password
-                                        </label>
-                                        <input
-                                            type="password"
-                                            name="new-password"
-                                            id="new-password"
-                                            className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-violet-600 focus:border-violet-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-violet-500 dark:focus:border-violet-500"
-                                            placeholder="••••••••"
-                                            required=""
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center p-6 space-x-2 border-t border-gray-200 rounded-b dark:border-gray-600">
-                                {!saving ? (
-                                    <button
-                                        type="button"
-                                        className="text-white bg-violet-700 hover:bg-violet-800 focus:ring-4 focus:outline-none focus:ring-violet-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
-                                        onClick={saveItemHandler}
-                                    >
-                                        Save
-                                    </button>
-                                ) : (
-                                    <button
-                                        disabled
-                                        type="button"
-                                        className="text-white bg-violet-700 hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800 inline-flex items-center"
-                                    >
-                                        <svg
-                                            aria-hidden="true"
-                                            role="status"
-                                            className="inline w-4 h-4 mr-3 text-white animate-spin"
-                                            viewBox="0 0 100 101"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            <path
-                                                d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                                                fill="#E5E7EB"
-                                            />
-                                            <path
-                                                d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                                                fill="currentColor"
-                                            />
-                                        </svg>
-                                        Saving...
-                                    </button>
-                                )}
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )
-        );
-    };
-    const TableActions = ({ searchTerm, handleSearch }) => {
-        return (
-            <div className="flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0 md:space-x-4 p-4">
-                <div className="w-full md:w-1/2">
-                    <form className="flex items-center">
-                        <label htmlFor="simple-search" className="sr-only">
-                            Search
-                        </label>
-                        <div className="relative w-full">
-                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg
-                                    aria-hidden="true"
-                                    className="w-5 h-5 text-gray-500 dark:text-gray-400"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        fillRule="evenodd"
-                                        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                                        clipRule="evenodd"
-                                    />
-                                </svg>
-                            </div>
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={handleSearch}
-                                id="simple-search"
-                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                                placeholder="Search"
-                                required=""
-                            />
-                        </div>
-                    </form>
-                </div>
-                <div className="w-full md:w-auto flex flex-col md:flex-row space-y-2 md:space-y-0 items-stretch md:items-center justify-end md:space-x-3 flex-shrink-0">
-                    <button
-                        type="button"
-                        className="bg-violet-700 flex items-center justify-center text-white hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800"
-                        onClick={() => setShowModal(true)}
-                    >
-                        <svg
-                            className="h-3.5 w-3.5 mr-2"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg"
-                            aria-hidden="true"
-                        >
-                            <path
-                                clipRule="evenodd"
-                                fillRule="evenodd"
-                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                            />
-                        </svg>
-                        Add user
-                    </button>
-                    <div className="flex items-center space-x-3 w-full md:w-auto"></div>
-                </div>
-            </div>
-        );
-    };
-    const TableFooter = ({ totalPages, handleChangePage, currentPage }) => {
-        return (
-            <nav
-                className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4"
-                aria-label="Table navigation"
+    return (
+      <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
+        <thead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+          <tr>
+            <th scope="col" className="p-4">
+              STT
+            </th>
+            <th scope="col" className="px-6 py-3">
+              {type === "post"
+                ? "Bài viết"
+                : type === "user"
+                  ? "Người dùng"
+                  : "Đối tượng bị báo cáo"}
+            </th>
+            {type === "all" && (
+              <th scope="col" className="px-6 py-3">
+                Kiểu
+              </th>
+            )}
+            <th scope="col" className="px-6 py-3">
+              Lý do
+            </th>
+            {type !== "all" && (
+              <th scope="col" className="px-6 py-3">
+                Người báo cáo
+              </th>
+            )}
+            <th scope="col" className="px-6 py-3">
+              Action
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, index) => (
+            <tr
+              key={`${item._id}`}
+              className="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600"
             >
-                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 space-x-2">
-                    Showing&nbsp;
-                    <span className="font-semibold text-gray-900 dark:text-white">{currentPage}</span>
-                    &nbsp;of
-                    <span className="font-semibold text-gray-900 dark:text-white">{totalPages}</span>
-                </span>
-                <ul className="inline-flex items-stretch -space-x-px">
-                    <li>
-                        <a
-                            href="#"
-                            className="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-                        >
-                            <span className="sr-only">Previous</span>
-                            <svg
-                                className="w-5 h-5"
-                                aria-hidden="true"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    fillRule="evenodd"
-                                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                        </a>
-                    </li>
-                    {Array.from({ length: totalPages }).map((_, index) => (
-                        <li key={index}>
-                            <button
-                                onClick={() => handleChangePage(index + 1)}
-                                disabled={currentPage === index + 1}
-                                type="button"
-                                className={`flex items-center justify-center text-sm py-2 px-3 leading-tight ${
-                                    currentPage === index + 1 ? "bg-violet-700 text-white" : "bg-white text-gray-500"
-                                } border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white`}
-                            >
-                                {index + 1}
-                            </button>
-                        </li>
-                    ))}
-                    {/* <li>
+              <td className="w-4 p-4">
+                <div className="flex items-center justify-center text-xl">
+                  {index + 1}
+                </div>
+              </td>
+              <th
+                scope="row"
+                className="flex items-center whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white"
+              >
+                {item.post?.imageUrl ||
+                  (item.user?.avatar && (
+                    <img
+                      className="h-10 w-10 rounded-md"
+                      src={
+                        item.post
+                          ? item.post.imageUrl
+                          : item.user
+                            ? item.user.avatar
+                            : null
+                      }
+                      alt="Jese image"
+                      width={100}
+                      height={100}
+                    />
+                  ))}
+
+                <div className="pl-3">
+                  <div className="text-base font-semibold">
+                    {item.post
+                      ? item.post.content
+                      : item.user
+                        ? item.user.firstName
+                        : null}
+                  </div>
+                </div>
+              </th>
+              {type === "all" && (
+                <td className="px-6 py-4">
+                  {item.type == "POST"
+                    ? "Bài viết"
+                    : item.type == "USER"
+                      ? "Người dùng"
+                      : null}
+                </td>
+              )}
+
+              <td className="px-6 py-4">
+                <div className="flex flex-col">
+                  {item.reasons?.map((reason, index) => {
+                    return <div key={index}>{reason}</div>;
+                  })}
+                </div>
+              </td>
+              {type !== "all" && (
+                <td className="px-6 py-4 text-gray-900 dark:text-white">
+                  <div className="flex items-center">
+                    {item.reporter?.avatar && (
+                      <img
+                        className="h-10 w-10 rounded-md"
+                        src={item.reporter.avatar}
+                        alt="Jese image"
+                        width={100}
+                        height={100}
+                      />
+                    )}
+
+                    <div className="pl-3 text-base font-semibold">
+                      {item.reporter.lastName + " " + item.reporter.firstName}
+                    </div>
+                  </div>
+                </td>
+              )}
+              <td className="flex items-center px-6 py-4">
+                <button
+                  type="button"
+                  className="font-medium text-violet-600 hover:underline"
+                  onClick={() => handleWatch(item._id)}
+                >
+                  <FaEye className="h-6 w-6" />
+                </button>
+
+                <button
+                  type="button"
+                  className="ml-4 font-medium text-red-600 hover:underline"
+                  onClick={() => setShowPopup(true)}
+                >
+                  <ImBlocked className="h-6 w-6" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+  const ItemsModal = () => {
+    return (
+      showModal && (
+        <div
+          className={`fixed left-0 right-0 top-0 z-50 mx-auto  flex h-[calc(100%-1rem)] max-h-full  w-full items-center justify-center overflow-y-auto overflow-x-hidden p-4 md:inset-0`}
+        >
+          <div
+            className={`${
+              showModal ? "drop-shadow-sm" : ""
+            }  relative mx-auto max-h-full w-full  max-w-xl`}
+          >
+            <form
+              action="#"
+              className="relative rounded-lg bg-white shadow dark:bg-gray-700"
+            >
+              <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
+                <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
+                  Chi tiết báo cáo
+                </h3>
+                <button
+                  type="button"
+                  className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
+                  onClick={() => setShowModal(false)}
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-5 w-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-6 p-6">
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="col-span-6 sm:col-span-3">
+                    <label
+                      htmlFor="first-name"
+                      className="mb-2 block text-base font-medium text-gray-900 dark:text-white"
+                    >
+                      Người báo cáo:{" "}
+                      <span className="text-gray-600">
+                        {reportData?.reporter.lastName +
+                          " " +
+                          reportData?.reporter.firstName}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <label
+                      htmlFor="last-name"
+                      className="mb-2 block text-base font-medium text-gray-900 dark:text-white"
+                    >
+                      Ngày báo cáo:{" "}
+                      <span className="text-gray-600">
+                        {convertDateFormat(reportData?.createdAt)}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <label
+                      htmlFor="email"
+                      className="mb-2 block text-base font-medium text-gray-900 dark:text-white"
+                    >
+                      Đối tượng bị báo cáo:{" "}
+                      <span className="text-gray-600">
+                        {reportData.type === "POST"
+                          ? "Bài viết"
+                          : reportData.type === "USER"
+                            ? "Người dùng"
+                            : ""}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <label
+                      htmlFor="email"
+                      className="mb-2 flex text-base font-medium text-gray-900 dark:text-white"
+                    >
+                      Lý do:{" "}
+                      <span className="text-gray-600">
+                        {reportData?.reasons?.map((reason) => (
+                          <div key={reason} className="ml-4 flex flex-col">
+                            <span className="text-gray-600">{reason}</span>
+                          </div>
+                        ))}
+                      </span>
+                    </label>
+                  </div>
+                  {reportData.type === "POST" && (
+                    <div className="col-span-6 flex h-auto w-[100%] justify-center rounded-lg border-2 border-gray-300 bg-gray-50 p-2 sm:col-span-3">
+                      <div className="flex flex-col items-center justify-center">
+                        <h1 className="p-4 text-base font-medium text-gray-900 dark:text-white">
+                          Nội dung:{" "}
+                          <span className="text-gray-600">
+                            {reportData.post?.content}
+                          </span>
+                        </h1>
+                        <img src={reportData.post?.imageUrl} className="p-4" />
+                      </div>
+                    </div>
+                  )}
+                  {reportData.type === "USER" && (
+                    <div className="col-span-6 flex h-auto w-[100%] justify-center rounded-lg border-2 border-gray-300 bg-gray-50 p-2 sm:col-span-3">
+                      <div className="flex items-center justify-center">
+                        <img src={reportData.user?.avatar} className="w-24" />
+                        <div>
+                          <p className="p-4 text-base font-medium text-gray-900 dark:text-white">
+                            {reportData.user?.lastName +
+                              " " +
+                              reportData.user?.firstName}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-end justify-end space-x-2 rounded-b border-t border-gray-200 p-6 dark:border-gray-600">
+                <button
+                  type="button"
+                  className="rounded-lg bg-red-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
+                  onClick={() => setShowModal(false)}
+                >
+                  Đóng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )
+    );
+  };
+  const PopupConfirm = () => {
+    return (
+      showPopup && (
+        <div
+          className={`fixed left-0 right-0 top-0 z-50 mx-auto  flex h-[calc(100%-1rem)] max-h-full  w-full items-center justify-center overflow-y-auto overflow-x-hidden p-4 md:inset-0`}
+        >
+          <div
+            className={`${
+              showPopup ? "drop-shadow-sm" : ""
+            }  relative mx-auto max-h-full w-full  max-w-xl`}
+          >
+            <form
+              action="#"
+              className="relative rounded-lg bg-white shadow dark:bg-gray-700"
+            >
+              <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
+                <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
+                  Xác nhận khoá
+                </h3>
+                <button
+                  type="button"
+                  className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
+                  onClick={() => setShowPopup(false)}
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-5 w-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex w-full  justify-center p-10">
+                <button
+                  type="button"
+                  onClick={() => setShowPopup(false)}
+                  className=" mr-4 rounded-lg bg-red-700 px-5 py-2.5 text-center text-xl font-medium text-white hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPopup(false)}
+                  className=" ml-4 rounded-lg bg-violet-700 px-5 py-2.5 text-center text-xl font-medium text-white hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )
+    );
+  };
+  const TableActions = ({ searchTerm, handleSearch }) => {
+    return (
+      <div className="flex flex-col items-center justify-between space-y-3 p-4 md:flex-row md:space-x-4 md:space-y-0">
+        <div className="w-full md:w-1/2">
+          <form className="flex items-center">
+            <label htmlFor="simple-search" className="sr-only">
+              Search
+            </label>
+            <div className="relative w-full">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5 text-gray-500 dark:text-gray-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearch}
+                id="simple-search"
+                className="focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-500 dark:focus:border-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 pl-10 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                placeholder="Search"
+                required=""
+              />
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+  const TableFooter = ({ totalPages, handleChangePage, currentPage }) => {
+    return (
+      <nav
+        className="flex flex-col items-start justify-between space-y-3 p-4 md:flex-row md:items-center md:space-y-0"
+        aria-label="Table navigation"
+      >
+        <span className="space-x-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+          Showing&nbsp;
+          <span className="font-semibold text-gray-900 dark:text-white">
+            {currentPage}
+          </span>
+          &nbsp;of
+          <span className="font-semibold text-gray-900 dark:text-white">
+            {totalPages}
+          </span>
+        </span>
+        <ul className="inline-flex items-stretch -space-x-px">
+          <li>
+            <a
+              href="#"
+              className="ml-0 flex h-full items-center justify-center rounded-l-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+            >
+              <span className="sr-only">Previous</span>
+              <svg
+                className="h-5 w-5"
+                aria-hidden="true"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </a>
+          </li>
+          {Array.from({ length: totalPages }).map((_, index) => (
+            <li key={index}>
+              <button
+                onClick={() => handleChangePage(index + 1)}
+                disabled={currentPage === index + 1}
+                type="button"
+                className={`flex items-center justify-center px-3 py-2 text-sm leading-tight ${
+                  currentPage === index + 1
+                    ? "bg-violet-700 text-white"
+                    : "bg-white text-gray-500"
+                } border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white`}
+              >
+                {index + 1}
+              </button>
+            </li>
+          ))}
+          {/* <li>
             <a
               href="#"
               className="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
@@ -469,165 +519,217 @@ export default function Page() {
               100
             </a>
           </li> */}
-                    <li>
-                        <a
-                            href="#"
-                            className="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-                        >
-                            <span className="sr-only">Next</span>
-                            <svg
-                                className="w-5 h-5"
-                                aria-hidden="true"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    fillRule="evenodd"
-                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        );
-    };
-    const ItemsTableContainer = () => {
-        const [currentPage, setCurrentPage] = useState(1);
-        const [searchTerm, setSearchTerm] = useState("");
-
-        const handleChangePage = (page) => {
-            setCurrentPage(page);
-        };
-        let pageSize = 10;
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const totalPages = Math.ceil(reports.length / pageSize);
-        //const  currentData = reports.slice(startIndex, endIndex);
-
-        //search filter
-        const handleSearch = (event) => {
-            setSearchTerm(event.target.value);
-            setCurrentPage(1);
-        };
-
-        const filteredData = reports.filter((item) => item.reason.toLowerCase().includes(searchTerm.toLowerCase()));
-        const currentData = filteredData.slice(startIndex, endIndex);
-
-        return (
-            <div className="bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden">
-                <TableActions searchTerm={searchTerm} handleSearch={handleSearch} />
-                <div className="overflow-x-auto">
-                    <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-                        <ItemsTable items={currentData} />
-                    </div>
-                </div>
-                <TableFooter totalPages={totalPages} handleChangePage={handleChangePage} currentPage={currentPage} />
-                {/* <DeleteToast /> */}
-                <ToastContainer
-                    position="bottom-right"
-                    autoClose={5000}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
+          <li>
+            <a
+              href="#"
+              className="flex h-full items-center justify-center rounded-r-lg border border-gray-300 bg-white px-3 py-1.5 leading-tight text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+            >
+              <span className="sr-only">Next</span>
+              <svg
+                className="h-5 w-5"
+                aria-hidden="true"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
                 />
-            </div>
-        );
-    };
-    const LoadingTable = () => {
-        return (
-            <div className="bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                    <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    <th scope="col" className="p-4">
-                                        <div className="flex items-center">
-                                            <input
-                                                id="checkbox-all-search"
-                                                type="checkbox"
-                                                className="w-4 h-4 text-violet-600 bg-gray-100 border-gray-300 rounded focus:ring-violet-500 dark:focus:ring-violet-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label htmlFor="checkbox-all-search" className="sr-only">
-                                                checkbox
-                                            </label>
-                                        </div>
-                                    </th>
-                                    <th scope="col" className="px-6 py-3">
-                                        Name
-                                    </th>
-                                    <th scope="col" className="px-6 py-3">
-                                        Position
-                                    </th>
-                                    <th scope="col" className="px-6 py-3">
-                                        Status
-                                    </th>
-                                    <th scope="col" className="px-6 py-3">
-                                        Action
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loadingRowsCount.map((product) => (
-                                    <tr
-                                        key={`${product.id}`}
-                                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                                    >
-                                        <td className="w-4 p-4">
-                                            <div className="flex items-center">
-                                                <input
-                                                    id="checkbox-table-search-1"
-                                                    type="checkbox"
-                                                    className="w-4 h-4 text-violet-600 bg-gray-100 border-gray-300 rounded focus:ring-violet-500 dark:focus:ring-violet-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label htmlFor="checkbox-table-search-1" className="sr-only">
-                                                    <div className="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
-                                                </label>
-                                            </div>
-                                        </td>
-                                        <th
-                                            scope="row"
-                                            className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white"
-                                        >
-                                            <div className="pl-3">
-                                                <div className="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
-                                            </div>
-                                        </th>
-                                        <td className="px-6 py-4">
-                                            {" "}
-                                            <div className="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        );
+              </svg>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+  const ItemsTableContainer = () => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const handlePostsReported = () => {
+      setType("post");
     };
 
-    //main
-    return (
-        <section className="p-2">
-            <div className={`mx-auto max-w-screen-xl px-2 lg:px-12 ${showModal ? "blur-lg" : ""}`}>
-                {products ? <ItemsTableContainer /> : <LoadingTable />}
-            </div>
-            <ItemsModal />
-        </section>
+    const handleUsersReported = () => {
+      setType("user");
+    };
+
+    const handleChangePage = (page) => {
+      setCurrentPage(page);
+    };
+    let pageSize = 10;
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const totalPages = Math.ceil(reports.length / pageSize);
+    //const  currentData = reports.slice(startIndex, endIndex);
+
+    //search filter
+    const handleSearch = (event) => {
+      setSearchTerm(event.target.value);
+      setCurrentPage(1);
+    };
+
+    const filteredData = reports.filter((item) =>
+      item.reasons.some((reason) =>
+        reason.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
     );
+
+    const currentData = filteredData.slice(startIndex, endIndex);
+
+    return (
+      <div className="relative overflow-hidden bg-white shadow-md dark:bg-gray-800 sm:rounded-lg">
+        <TableActions searchTerm={searchTerm} handleSearch={handleSearch} />
+        <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+            <Tabs>
+              <TabList className="flex w-full items-center">
+                <Tab className="w-[20%] pl-4" onClick={handlePostsReported}>
+                  <p
+                    className={`w-full rounded-lg  border-2 p-4 ${
+                      type === "post"
+                        ? "bg-violet-500 text-white"
+                        : "hover:bg-violet-100"
+                    }`}
+                  >
+                    Bài viết
+                  </p>
+                </Tab>
+                <Tab className="w-[20%]" onClick={handleUsersReported}>
+                  <p
+                    className={`w-full rounded-lg  border-2 p-4 ${
+                      type === "user"
+                        ? "bg-violet-500 text-white"
+                        : "hover:bg-violet-100"
+                    }`}
+                  >
+                    Người dùng
+                  </p>
+                </Tab>
+              </TabList>
+            </Tabs>
+
+            <ItemsTable items={currentData} />
+          </div>
+        </div>
+        <TableFooter
+          totalPages={totalPages}
+          handleChangePage={handleChangePage}
+          currentPage={currentPage}
+        />
+        {/* <DeleteToast /> */}
+        <ToastContainer
+          position="bottom-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
+      </div>
+    );
+  };
+  const LoadingTable = () => {
+    return (
+      <div className="relative overflow-hidden bg-white shadow-md dark:bg-gray-800 sm:rounded-lg">
+        <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+            <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                  <th scope="col" className="p-4">
+                    <div className="flex items-center">
+                      <input
+                        id="checkbox-all-search"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 bg-gray-100 text-violet-600 focus:ring-2 focus:ring-violet-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-violet-600 dark:focus:ring-offset-gray-800"
+                      />
+                      <label htmlFor="checkbox-all-search" className="sr-only">
+                        checkbox
+                      </label>
+                    </div>
+                  </th>
+                  <th scope="col" className="px-6 py-3">
+                    Name
+                  </th>
+                  <th scope="col" className="px-6 py-3">
+                    Position
+                  </th>
+                  <th scope="col" className="px-6 py-3">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingRowsCount.map((product, index) => (
+                  <tr
+                    key={index}
+                    className="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600"
+                  >
+                    <td className="w-4 p-4">
+                      <div className="flex items-center">
+                        <input
+                          id="checkbox-table-search-1"
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 bg-gray-100 text-violet-600 focus:ring-2 focus:ring-violet-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-violet-600 dark:focus:ring-offset-gray-800"
+                        />
+                        <label
+                          htmlFor="checkbox-table-search-1"
+                          className="sr-only"
+                        >
+                          <div className="mb-2.5 h-2.5 w-24 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                        </label>
+                      </div>
+                    </td>
+                    <th
+                      scope="row"
+                      className="flex items-center whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white"
+                    >
+                      <div className="pl-3">
+                        <div className="mb-2.5 h-2.5 w-24 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                      </div>
+                    </th>
+                    <td className="px-6 py-4">
+                      {" "}
+                      <div className="mb-2.5 h-2.5 w-24 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="mb-2.5 h-2.5 w-24 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="mb-2.5 h-2.5 w-24 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  //main
+  return (
+    <section className="p-2">
+      <div
+        className={`mx-auto max-w-screen-xl px-2 lg:px-12 ${
+          showModal || showPopup ? "blur-lg" : ""
+        }`}
+      >
+        {reports.length > 0 ? <ItemsTableContainer /> : <LoadingTable />}
+      </div>
+      <ItemsModal />
+      <PopupConfirm />
+    </section>
+  );
 }
