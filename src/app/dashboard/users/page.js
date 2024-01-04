@@ -2,15 +2,17 @@
 import UserService from "@/core/service/user.service";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+
 import defaultAvatar from "../../../img/defaultAvatar.png";
 import { FaEye } from "react-icons/fa";
-import { ImBlocked } from "react-icons/im";
+import { ImBlocked, ImUnlocked } from "react-icons/im";
+import toast from "react-hot-toast";
+import convertDateFormat from "@/core/utils/formatDate";
 
 export default function Page() {
   const [showModal, setShowModal] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [userData, setUserData] = useState(null);
   const [users, setUsers] = useState([]);
   const loadingRowsCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -23,7 +25,43 @@ export default function Page() {
     setUsers(data);
   };
 
+  const getUserDetails = async (userId) => {
+    const { data } = await UserService.getUserById(userId);
+    if (data) {
+      setUserData(data);
+    }
+  };
+
+  const changeStatusUser = async (userId) => {
+    try {
+      const body = { userId, status: userData?.status == 0 ? 1 : 0 };
+      const { data } = await UserService.changeStatusUser(body);
+      if (data) {
+        setShowPopup(false);
+        if (data.status == 0) {
+          toast.success("Đã khoá");
+        }
+        if (data.status == 1) {
+          toast.success("Đã mở khoá");
+        }
+        getUsers();
+      }
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  };
+
   const ItemsTable = ({ items }) => {
+    const handleWatch = (userId) => {
+      getUserDetails(userId);
+      setShowModal(true);
+    };
+
+    const handleLock = (userId) => {
+      getUserDetails(userId);
+      setShowPopup(true);
+    };
+
     return (
       <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
         <thead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
@@ -88,18 +126,22 @@ export default function Page() {
               <td className="flex items-center px-6 py-4">
                 <button
                   type="button"
+                  onClick={() => handleWatch(item._id)}
                   className="font-medium text-violet-600 hover:underline"
-                  onClick={() => setShowModal(true)}
                 >
                   <FaEye className="h-6 w-6" />
                 </button>
 
                 <button
                   type="button"
-                  className="ml-4 font-medium text-red-600 hover:underline"
-                  onClick={() => setShowPopup(true)}
+                  className="ml-4 font-medium  hover:underline"
+                  onClick={() => handleLock(item._id)}
                 >
-                  <ImBlocked className="h-6 w-6" />
+                  {item.status == 1 ? (
+                    <ImBlocked className="h-6 w-6 text-red-500" />
+                  ) : (
+                    <ImUnlocked className="h-6 w-6 text-green-500" />
+                  )}
                 </button>
               </td>
             </tr>
@@ -117,14 +159,14 @@ export default function Page() {
           <div
             className={`${
               showModal ? "drop-shadow-sm" : ""
-            }  relative mx-auto max-h-full w-full  max-w-2xl`}
+            }  relative mx-auto max-h-full w-full  max-w-xl`}
           >
             <form
               action="#"
               className="relative rounded-lg bg-white shadow dark:bg-gray-700"
             >
               <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
                   Xem thông tin
                 </h3>
                 <button
@@ -155,112 +197,81 @@ export default function Page() {
                       htmlFor="first-name"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Tên
+                      Tên :{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.firstName}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      name="first-name"
-                      id="first-name"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="Kiệt"
-                      required=""
-                    />
                   </div>
                   <div className="col-span-6 sm:col-span-3">
                     <label
                       htmlFor="last-name"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Họ
+                      Họ:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.lastName}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      name="last-name"
-                      id="last-name"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="Vũ"
-                      required=""
-                    />
                   </div>
-                  <div className="col-span-6 sm:col-span-3">
+                  <div className="col-span-12 sm:col-span-6">
                     <label
                       htmlFor="email"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Email
+                      Email:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.email}
+                      </span>
                     </label>
-                    <input
-                      type="email"
-                      name="email"
-                      id="email"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="vuxkiet1412@gmail.com"
-                      required=""
-                    />
                   </div>
                   <div className="col-span-6 sm:col-span-3">
                     <label
                       htmlFor="phone-number"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Số điện thoại
+                      Số điện thoại:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.phone ? userData?.phone : "null"}
+                      </span>
                     </label>
-                    <input
-                      type="number"
-                      name="phone-number"
-                      id="phone-number"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="0976398402"
-                      required=""
-                    />
-                  </div>
-                  <div className="col-span-6 sm:col-span-3">
-                    <label
-                      htmlFor="department"
-                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      ROLE
-                    </label>
-                    <input
-                      type="text"
-                      name="department"
-                      id="department"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="USER"
-                      required=""
-                    />
-                  </div>
-                  <div className="col-span-6 sm:col-span-3">
-                    <label
-                      htmlFor="company"
-                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Địa chỉ
-                    </label>
-                    <textarea
-                      type="text"
-                      name="company"
-                      id="company"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="135B Tây Lân, P. Bình Trị Đông A, Q. Bình Tân"
-                      required=""
-                    />
                   </div>
                   <div className="col-span-6 sm:col-span-3">
                     <label
                       htmlFor="current-password"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Ngày sinh
+                      Ngày sinh:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.birthday
+                          ? convertDateFormat(userData?.birthday)
+                          : "null"}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      name="current-password"
-                      id="current-password"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="24/11/2001"
-                      required=""
-                    />
+                  </div>
+                  <div className="col-span-12 sm:col-span-6">
+                    <label
+                      htmlFor="department"
+                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      ROLE :{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.role}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="col-span-12 sm:col-span-6">
+                    <label
+                      htmlFor="company"
+                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Địa chỉ:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.address ? userData?.address : "null"}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="col-span-12 sm:col-span-6">
                     <label
                       htmlFor="avatar"
                       className="mb-2 mt-6 block text-sm font-medium text-gray-900 dark:text-white"
@@ -269,7 +280,10 @@ export default function Page() {
                     </label>
                     <Image
                       className="mt-2 w-40 rounded-lg "
-                      src={defaultAvatar}
+                      src={userData?.avatar ? userData?.avatar : defaultAvatar}
+                      width={400}
+                      height={400}
+                      alt=""
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-3">
@@ -277,16 +291,11 @@ export default function Page() {
                       htmlFor="new-password"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      Mô tả
+                      Mô tả:{" "}
+                      <span className="text-base text-gray-900">
+                        {userData?.bio ? userData?.bio : "null"}
+                      </span>
                     </label>
-                    <textarea
-                      type="password"
-                      name="new-password"
-                      id="new-password"
-                      className="block h-32 w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="Nevagivup :>>"
-                      required=""
-                    />
                   </div>
                 </div>
               </div>
@@ -307,6 +316,10 @@ export default function Page() {
   };
 
   const PopupConfirm = () => {
+    const handleConfirm = async () => {
+      await changeStatusUser(userData?._id);
+    };
+
     return (
       showPopup && (
         <div
@@ -323,7 +336,11 @@ export default function Page() {
             >
               <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
                 <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
-                  Xác nhận khoá
+                  {userData?.status === 0
+                    ? "Xác nhận mở khoá"
+                    : userData?.status === 1
+                      ? "Xác nhận khoá"
+                      : ""}
                 </h3>
                 <button
                   type="button"
@@ -356,7 +373,7 @@ export default function Page() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowPopup(false)}
+                  onClick={handleConfirm}
                   className=" ml-4 rounded-lg bg-violet-700 px-5 py-2.5 text-center text-xl font-medium text-white hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
                 >
                   Xác nhận
@@ -558,18 +575,6 @@ export default function Page() {
           currentPage={currentPage}
         />
         {/* <DeleteToast /> */}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
       </div>
     );
   };

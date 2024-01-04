@@ -1,25 +1,51 @@
 "use client";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import logo from "../img/logo.png";
 import Image from "next/image";
 import { useState } from "react";
 import AuthService from "@/core/service/auth.service";
+import { useDispatch } from "react-redux";
+import { setToken, setUserLogin } from "@/core/store/feature/user-slice";
+import { CircularProgress } from "@chakra-ui/react";
+import { store } from "@/core/store";
+import toast from "react-hot-toast";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const login = async () => {
-    const { data } = await AuthService.login({ email, password });
-    if (data) {
-    }
-  };
-
   const { push } = useRouter();
-  function handleClick() {
+
+  const dispatch = useDispatch();
+  const accessToken = store.getState().user.accessToken;
+  if (accessToken) {
     push("/dashboard");
   }
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const login = async () => {
+    // try {
+
+    const { data } = await AuthService.login({ email, password });
+    console.log(data);
+
+    if (data) {
+      const { accessToken, user } = data.result;
+      dispatch(setUserLogin(user));
+      dispatch(setToken(accessToken));
+      toast.success("Đăng nhập thành công");
+      push("/dashboard");
+    }
+    // } catch (error) {
+    //   toast.error(error.response.data.message);
+    //   setLoading(false);
+    // }
+  };
+
+  const handleClick = async () => {
+    setLoading(true);
+    await login();
+  };
   return (
     <div className="">
       <section className="bg-gray-200 dark:bg-gray-900">
@@ -72,9 +98,17 @@ export default function Login() {
 
                 <button
                   onClick={handleClick}
-                  className="w-full rounded-lg bg-violet-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-violet-400 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
+                  className="flex w-full items-center justify-center rounded-lg bg-violet-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-violet-400 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
                 >
-                  Đăng nhập
+                  {loading ? (
+                    <CircularProgress
+                      isIndeterminate
+                      thickness="10px"
+                      size="32px"
+                    />
+                  ) : (
+                    "Đăng nhập"
+                  )}
                 </button>
               </div>
             </div>

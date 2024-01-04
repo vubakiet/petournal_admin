@@ -2,14 +2,14 @@
 import PostService from "@/core/service/post.service";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { FaEye } from "react-icons/fa";
-import { ImBlocked } from "react-icons/im";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { ImBlocked, ImUnlocked } from "react-icons/im";
 
 export default function Page() {
   const [showModal, setShowModal] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [postData, setPostData] = useState(null);
   const loadingRowsCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   const [posts, setPosts] = useState([]);
@@ -23,9 +23,41 @@ export default function Page() {
     setPosts(data);
   };
 
+  const getPostDetails = async (postId) => {
+    const { data } = await PostService.getPostById(postId);
+    if (data) {
+      setPostData(data);
+    }
+  };
+
+  const changeStatusPost = async (postId) => {
+    try {
+      const body = { postId, status: postData?.status == 0 ? 1 : 0 };
+      const { data } = await PostService.changeStatusPost(body);
+      if (data) {
+        setShowPopup(false);
+        if (data.status == 0) {
+          toast.success("Đã khoá");
+        }
+        if (data.status == 1) {
+          toast.success("Đã mở khoá");
+        }
+        getPosts();
+      }
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  };
+
   const ItemsTable = ({ items }) => {
-    const handleWatch = () => {
+    const handleWatch = (postId) => {
+      getPostDetails(postId);
       setShowModal(true);
+    };
+
+    const handleLock = (postId) => {
+      getPostDetails(postId);
+      setShowPopup(true);
     };
 
     return (
@@ -105,7 +137,7 @@ export default function Page() {
               <td className="flex items-center px-6 py-4">
                 <button
                   type="button"
-                  onClick={handleWatch}
+                  onClick={() => handleWatch(item._id)}
                   className="font-medium text-violet-600 hover:underline"
                 >
                   <FaEye className="h-6 w-6" />
@@ -113,10 +145,14 @@ export default function Page() {
 
                 <button
                   type="button"
-                  className="ml-4 font-medium text-red-600 hover:underline"
-                  onClick={() => setShowPopup(true)}
+                  className="ml-4 font-medium  hover:underline"
+                  onClick={() => handleLock(item._id)}
                 >
-                  <ImBlocked className="h-6 w-6" />
+                  {item.status == 1 ? (
+                    <ImBlocked className="h-6 w-6 text-red-500" />
+                  ) : (
+                    <ImUnlocked className="h-6 w-6 text-green-500" />
+                  )}
                 </button>
               </td>
             </tr>
@@ -141,7 +177,7 @@ export default function Page() {
               className="relative rounded-lg bg-white shadow dark:bg-gray-700"
             >
               <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
                   Xem thông tin
                 </h3>
                 <button
@@ -172,73 +208,53 @@ export default function Page() {
                       htmlFor="first-name"
                       className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
                     >
-                      <p className="text-bold">Tên</p>
+                      <p className="text-bold">
+                        Tên:{" "}
+                        <span className="text-base text-gray-900 dark:text-white">
+                          {postData?.user?.lastName +
+                            " " +
+                            postData?.user?.firstName}
+                        </span>
+                      </p>
                     </label>
-                    <input
-                      type="text"
-                      name="first-name"
-                      id="first-name"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="Vu Kiet"
-                      required=""
-                    />
                   </div>
                   <div className="col-span-6 sm:col-span-3"></div>
-                  <div className="col-span-12 sm:col-span-3">Bob đập tay!!</div>
+                  <div className="col-span-12 sm:col-span-3">
+                    Nội dung:{" "}
+                    <span className="text-base">{postData?.content}</span>
+                  </div>
                   <div className="col-span-12 sm:col-span-6">
-                    <Image
-                      src={`https://firebasestorage.googleapis.com/v0/b/petournal-e5c1a.appspot.com/o/posts%2F6547a038d57e6981ec01a71a%2Fimages%2F1702172661097?alt=media&token=e80aee31-d551-4719-aa0e-ff765b39f8e4`}
-                      width={1000}
-                      height={1000}
-                    />
+                    {postData?.imageUrl && (
+                      <Image
+                        src={postData?.imageUrl}
+                        width={1000}
+                        height={1000}
+                      />
+                    )}
                   </div>
-                  <div className="col-span-3 sm:col-span-1">
-                    <label
-                      htmlFor="phone-number"
-                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Lượt thích
-                    </label>
-                    <input
-                      type="number"
-                      name="phone-number"
-                      id="phone-number"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="2"
-                      required=""
-                    />
-                  </div>
-                  <div className="col-span-6 sm:col-span-3">
-                    <label
-                      htmlFor="company"
-                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Số lượng bình luận
-                    </label>
-                    <input
-                      type="number"
-                      name="company"
-                      id="company"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="21"
-                      required=""
-                    />
-                  </div>
-                  <div className="col-span-3 sm:col-span-1">
-                    <label
-                      htmlFor="department"
-                      className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Số lượng pet
-                    </label>
-                    <input
-                      type="text"
-                      name="department"
-                      id="department"
-                      className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 shadow-sm focus:border-violet-600 focus:ring-violet-600 dark:border-gray-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:border-violet-500 dark:focus:ring-violet-500"
-                      placeholder="1"
-                      required=""
-                    />
+                  <div className="col-span-6 flex w-full justify-around">
+                    <div className="">
+                      <label
+                        htmlFor="phone-number"
+                        className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Lượt thích:{" "}
+                        <span className="text-base">
+                          {postData?.likes?.length}
+                        </span>
+                      </label>
+                    </div>
+                    <div className="">
+                      <label
+                        htmlFor="department"
+                        className="mb-2 block text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Số lượng pet:{" "}
+                        <span className="text-base">
+                          {postData?.pets?.length}
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -258,6 +274,10 @@ export default function Page() {
     );
   };
   const PopupConfirm = () => {
+    const handleConfirm = async () => {
+      await changeStatusPost(postData._id);
+    };
+
     return (
       showPopup && (
         <div
@@ -274,7 +294,11 @@ export default function Page() {
             >
               <div className="flex items-start justify-between rounded-t border-b p-4 dark:border-gray-600">
                 <h3 className="flex w-full items-center justify-center text-xl font-semibold text-gray-900 dark:text-white">
-                  Xác nhận khoá
+                  {postData?.status === 0
+                    ? "Xác nhận mở khoá"
+                    : postData?.status === 1
+                      ? "Xác nhận khoá"
+                      : ""}
                 </h3>
                 <button
                   type="button"
@@ -307,7 +331,7 @@ export default function Page() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowPopup(false)}
+                  onClick={handleConfirm}
                   className=" ml-4 rounded-lg bg-violet-700 px-5 py-2.5 text-center text-xl font-medium text-white hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
                 >
                   Xác nhận
@@ -476,18 +500,6 @@ export default function Page() {
           currentPage={currentPage}
         />
         {/* <DeleteToast /> */}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
       </div>
     );
   };
@@ -526,9 +538,9 @@ export default function Page() {
                 </tr>
               </thead>
               <tbody>
-                {loadingRowsCount.map((product) => (
+                {loadingRowsCount.map((product, index) => (
                   <tr
-                    key={`${product.id}`}
+                    key={index}
                     className="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600"
                   >
                     <td className="w-4 p-4">

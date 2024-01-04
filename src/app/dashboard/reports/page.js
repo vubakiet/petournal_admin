@@ -2,17 +2,20 @@
 import React, { useEffect, useState } from "react";
 import { FaEye } from "react-icons/fa";
 import { ImBlocked } from "react-icons/im";
-import { FaUserXmark } from "react-icons/fa6";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import ReportService from "@/core/service/report.service";
-import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@chakra-ui/react";
+import { Tab, TabList, Tabs } from "@chakra-ui/react";
 import convertDateFormat from "@/core/utils/formatDate";
+import UserService from "@/core/service/user.service";
+import PostService from "@/core/service/post.service";
+import toast from "react-hot-toast";
 
 export default function Page() {
   const [showModal, setShowModal] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [existsPostReport, setExistsPostReport] = useState(false);
+  const [existsUserReport, setExistsUserReport] = useState(false);
+  const [reportId, setReportId] = useState("");
 
   const loadingRowsCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const [reports, setReports] = useState([]);
@@ -26,22 +29,57 @@ export default function Page() {
     const { data } = await ReportService.getReportDetails(reportId);
     if (data) {
       setReportData(data);
-      setShowModal(true);
+    }
+  };
+
+  const changeStatusPost = async (postId) => {
+    try {
+      const body = { postId, status: 0 };
+      const { data } = await PostService.changeStatusPost(body);
+      console.log(data);
+      if (data) {
+        setShowPopup(false);
+        toast.success("Đã chặn");
+        getReports();
+      }
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  };
+
+  const changeStatusUser = async (userId) => {
+    try {
+      const body = { userId, status: 0 };
+      const { data } = await UserService.changeStatusUser(body);
+      console.log(data);
+      if (data) {
+        setShowPopup(false);
+        toast.success("Đã chặn");
+        getReports();
+      }
+    } catch (error) {
+      toast.error(error.response.data.message);
     }
   };
 
   const getReports = async () => {
     const { data } = await ReportService.getReports();
-    setReports(data);
+    setReports(data.reports);
+    setExistsPostReport(data.existsPostReport);
+    setExistsUserReport(data.existsUserReport);
   };
   const getPostsReported = async () => {
     const { data } = await ReportService.getPostsReported();
-    setReports(data);
+    if (data?.length > 0) {
+      setReports(data);
+    }
   };
 
   const getUsersReported = async () => {
     const { data } = await ReportService.getUsersReported();
-    setReports(data);
+    if (data?.length > 0) {
+      setReports(data);
+    }
   };
 
   useEffect(() => {
@@ -51,11 +89,20 @@ export default function Page() {
     if (type === "user") {
       getUsersReported();
     }
+    if (type === "all") {
+      getReports();
+    }
   }, [type]);
 
   const ItemsTable = ({ items }) => {
     const handleWatch = async (reportId) => {
       await getReportDetails(reportId);
+      setShowModal(true);
+    };
+
+    const handleBlock = async (reportId) => {
+      await getReportDetails(reportId);
+      setShowPopup(true);
     };
 
     return (
@@ -179,8 +226,8 @@ export default function Page() {
 
                 <button
                   type="button"
-                  className="ml-4 font-medium text-red-600 hover:underline"
-                  onClick={() => setShowPopup(true)}
+                  className="ml-4 font-medium text-red-500 hover:underline"
+                  onClick={() => handleBlock(item._id)}
                 >
                   <ImBlocked className="h-6 w-6" />
                 </button>
@@ -332,6 +379,15 @@ export default function Page() {
     );
   };
   const PopupConfirm = () => {
+    const handleConfirm = async () => {
+      if (reportData.type === "POST") {
+        await changeStatusPost(reportData?.post._id);
+      }
+      if (reportData.type === "USER") {
+        await changeStatusUser(reportData?.user._id);
+      }
+    };
+
     return (
       showPopup && (
         <div
@@ -381,7 +437,7 @@ export default function Page() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowPopup(false)}
+                  onClick={handleConfirm}
                   className=" ml-4 rounded-lg bg-violet-700 px-5 py-2.5 text-center text-xl font-medium text-white hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 dark:bg-violet-600 dark:hover:bg-violet-700 dark:focus:ring-violet-800"
                 >
                   Xác nhận
@@ -549,11 +605,23 @@ export default function Page() {
     const [searchTerm, setSearchTerm] = useState("");
 
     const handlePostsReported = () => {
-      setType("post");
+      if (existsPostReport) {
+        setType("post");
+      } else {
+        toast.error("Danh sách báo cáo bài viết trống");
+      }
     };
 
     const handleUsersReported = () => {
-      setType("user");
+      if (existsUserReport) {
+        setType("user");
+      } else {
+        toast.error("Danh sách báo cáo người dùng trống");
+      }
+    };
+
+    const handleAllReported = () => {
+      setType("all");
     };
 
     const handleChangePage = (page) => {
@@ -584,9 +652,20 @@ export default function Page() {
         <TableActions searchTerm={searchTerm} handleSearch={handleSearch} />
         <div className="overflow-x-auto">
           <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-            <Tabs>
+            <Tabs className="pb-4">
               <TabList className="flex w-full items-center">
-                <Tab className="w-[20%] pl-4" onClick={handlePostsReported}>
+                <Tab className="w-[15%] pl-4" onClick={handleAllReported}>
+                  <p
+                    className={`w-full rounded-lg  border-2 p-4 ${
+                      type === "all"
+                        ? "bg-violet-500 text-white"
+                        : "hover:bg-violet-100"
+                    }`}
+                  >
+                    Tất cả
+                  </p>
+                </Tab>
+                <Tab className="w-[15%]" onClick={handlePostsReported}>
                   <p
                     className={`w-full rounded-lg  border-2 p-4 ${
                       type === "post"
@@ -597,7 +676,7 @@ export default function Page() {
                     Bài viết
                   </p>
                 </Tab>
-                <Tab className="w-[20%]" onClick={handleUsersReported}>
+                <Tab className="w-[15%]" onClick={handleUsersReported}>
                   <p
                     className={`w-full rounded-lg  border-2 p-4 ${
                       type === "user"
@@ -620,18 +699,6 @@ export default function Page() {
           currentPage={currentPage}
         />
         {/* <DeleteToast /> */}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
       </div>
     );
   };
